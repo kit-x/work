@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/bmizerany/assert"
+	"github.com/stretchr/testify/assert"
 )
 
 func Test_Client_WorkerPoolHeartbeats(t *testing.T) {

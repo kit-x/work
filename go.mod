@@ -6,7 +6,7 @@ require (
 	github.com/albrow/jobs v0.4.2
 	github.com/benmanns/goworker v0.1.3
 	github.com/bitly/go-simplejson v0.5.0 // indirect
-	github.com/bmizerany/assert v0.0.0-20160611221934-b7ed37b82869
+	github.com/bmizerany/assert v0.0.0-20160611221934-b7ed37b82869 // indirect
 	github.com/braintree/manners v0.0.0-20160418043613-82a8879fc5fd
 	github.com/cihub/seelog v0.0.0-20170130134532-f561c5e57575 // indirect
 	github.com/customerio/gospec v0.0.0-20130710230057-a5cc0e48aa39 // indirect
