@@ -2,10 +2,8 @@ package work
 
 import (
 	"fmt"
-	"sort"
 
 	"github.com/go-redis/redis"
-	"github.com/pkg/errors"
 )
 
 // ErrNotDeleted is returned by functions that delete jobs to indicate that although the redis commands were successful,
@@ -68,75 +66,9 @@ func (ks keys) WorkerPoolsKey() string {
 }
 
 func (ks keys) HeartbeatKey(id string) string {
-	return fmt.Sprintf("%s:%s", ks.workerPools, id)
+	return fmt.Sprintf("%s:%s:%s", ks.namespace, ks.workerPools, id)
 }
 
-// WorkerPoolHeartbeats queries Redis and returns all WorkerPoolHeartbeat's it finds (even for those worker pools which don't have a current heartbeat).
-func (c *Client) WorkerPoolHeartbeats() ([]*WorkerPoolHeartbeat, error) {
-	// fetch worker pool ids
-	workerPoolIDs, err := c.getWorkerPoolIDs()
-	if err != nil {
-		return nil, err
-	}
-
-	beats := make([]*WorkerPoolHeartbeat, 0, len(workerPoolIDs))
-
-	// send heart beat for each pool
-	cmds := make([]*redis.StringStringMapCmd, 0, len(workerPoolIDs))
-	sendHeartBeat := func(pipe redis.Pipeliner) error {
-		for i := range workerPoolIDs {
-			cmd := pipe.HGetAll(c.keys.HeartbeatKey(workerPoolIDs[i]))
-			cmds = append(cmds, cmd)
-		}
-
-		return nil
-	}
-	if _, err = c.conn.Pipelined(sendHeartBeat); err != nil {
-		return nil, errors.WithStack(err)
-	}
-
-	for _, cmd := range cmds {
-		result, err := cmd.Result()
-		if err != nil {
-			return nil, errors.WithStack(err)
-		}
-
-		beats = append(beats, newWorkerPoolHeartbeat(result))
-	}
-
-	return beats, nil
-}
-
-// cleanup when in testing. it should only used in test
-func (c *Client) cleanup() {
-	keys, err := c.conn.Keys(fmt.Sprintf("%s*", c.keys.NameSpace())).Result()
-	if err != nil {
-		panic(err)
-	}
-
-	if len(keys) == 0 {
-		return
-	}
-
-	if err := c.conn.Del(keys...).Err(); err != nil {
-		panic(err)
-	}
-}
-
-func (c *Client) setWorkerPoolIDs(ids ...string) error {
-	return c.conn.SAdd(c.keys.WorkerPoolsKey(), ids).Err()
-}
-
-func (c *Client) getWorkerPoolIDs() ([]string, error) {
-	workerPoolIDs, err := c.conn.SMembers(c.keys.WorkerPoolsKey()).Result()
-	if err != nil {
-		return nil, errors.WithStack(err)
-	}
-	sort.Strings(workerPoolIDs)
-
-	return workerPoolIDs, nil
-}
-
-func (c *Client) setWorkerPoolHeartbeat(heartbeat *WorkerPoolHeartbeat) error {
-	return c.conn.HMSet(c.keys.HeartbeatKey(heartbeat.WorkerPoolID), heartbeat.ToRedis()).Err()
+func (ks keys) WorkerObservationKey(id string) string {
+	return fmt.Sprintf("%s:worker:%s", ks.namespace, id)
 }

@@ -1,8 +1,12 @@
 package work
 
 import (
+	"sort"
 	"strconv"
 	"strings"
+
+	"github.com/go-redis/redis"
+	"github.com/pkg/errors"
 )
 
 // WorkerPoolHeartbeat represents the heartbeat from a worker pool.
@@ -37,7 +41,7 @@ func newWorkerPoolHeartbeat(hash map[string]string) *WorkerPoolHeartbeat {
 }
 
 func (wph *WorkerPoolHeartbeat) ToRedis() map[string]interface{} {
-	hash := map[string]interface{}{
+	return map[string]interface{}{
 		"worker_pool_id": wph.WorkerPoolID,
 		"started_at":     wph.StartedAt,
 		"heartbeat_at":   wph.HeartbeatAt,
@@ -47,6 +51,49 @@ func (wph *WorkerPoolHeartbeat) ToRedis() map[string]interface{} {
 		"pid":            wph.Pid,
 		"worker_ids":     strings.Join(wph.WorkerIDs, ","),
 	}
+}
 
-	return hash
+// WorkerPoolHeartbeats queries Redis and returns all WorkerPoolHeartbeat's it finds (even for those worker pools which don't have a current heartbeat).
+func (c *Client) WorkerPoolHeartbeats() ([]*WorkerPoolHeartbeat, error) {
+	// fetch worker pool ids
+	workerPoolIDs, err := c.getWorkerPoolIDs()
+	if err != nil {
+		return nil, err
+	}
+
+	// send heart beat for each pool
+	cmds := make([]*redis.StringStringMapCmd, 0, len(workerPoolIDs))
+	sendHeartBeat := func(pipe redis.Pipeliner) error {
+		for i := range workerPoolIDs {
+			cmd := pipe.HGetAll(c.keys.HeartbeatKey(workerPoolIDs[i]))
+			cmds = append(cmds, cmd)
+		}
+
+		return nil
+	}
+	if _, err = c.conn.Pipelined(sendHeartBeat); err != nil {
+		return nil, errors.WithStack(err)
+	}
+
+	beats := make([]*WorkerPoolHeartbeat, 0, len(workerPoolIDs))
+	for _, cmd := range cmds {
+		result, err := cmd.Result()
+		if err != nil {
+			return nil, errors.WithStack(err)
+		}
+
+		beats = append(beats, newWorkerPoolHeartbeat(result))
+	}
+
+	return beats, nil
+}
+
+func (c *Client) getWorkerPoolIDs() ([]string, error) {
+	workerPoolIDs, err := c.conn.SMembers(c.keys.WorkerPoolsKey()).Result()
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+	sort.Strings(workerPoolIDs)
+
+	return workerPoolIDs, nil
 }
