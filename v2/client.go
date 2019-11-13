@@ -39,36 +39,3 @@ func NewConn(opt *redis.Options) *Conn {
 type Conn struct {
 	*redis.Client
 }
-
-func newKeys(namespace string) *keys {
-	l := len(namespace)
-	if (l > 0) && (namespace[l-1] != ':') {
-		namespace = namespace + ":"
-	}
-
-	return &keys{
-		namespace:   namespace,
-		workerPools: namespace + "worker_pools",
-	}
-}
-
-type keys struct {
-	namespace   string
-	workerPools string
-}
-
-func (ks keys) NameSpace() string {
-	return ks.namespace
-}
-
-func (ks keys) WorkerPoolsKey() string {
-	return ks.workerPools
-}
-
-func (ks keys) HeartbeatKey(id string) string {
-	return fmt.Sprintf("%s:%s:%s", ks.namespace, ks.workerPools, id)
-}
-
-func (ks keys) WorkerObservationKey(id string) string {
-	return fmt.Sprintf("%s:worker:%s", ks.namespace, id)
-}
