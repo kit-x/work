@@ -235,6 +235,20 @@ func (client *Client) DeleteDeadJob(diedAt int64, jobID string) error {
 	return nil
 }
 
+// RetryDeadJob retries a dead job.
+// The job will be re-queued on the normal work queue for eventual processing by a worker.
+func (client *Client) RetryDeadJob(diedAt int64, jobID string) error {
+	// client.Queues is too expensive
+	_, err := client.knownJobNames()
+	if err != nil {
+		return err
+	}
+
+	// TODO
+
+	return nil
+}
+
 type scoreJob struct {
 	Bytes []byte
 	Score int64
@@ -293,7 +307,7 @@ func offset(page, limit int64) int64 {
 }
 
 func (client *Client) deleteJobs(key string, score int64, jobID string) (bool, []byte, error) {
-	result, err := client.conn.DeleteJobs.Run(
+	result, err := client.script.DeleteJobAtZSet.Run(
 		client.conn,
 		[]string{key},
 		score, jobID,

@@ -1,6 +1,22 @@
 package work
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/go-redis/redis"
+)
+
+type Script struct {
+	DeleteJobAtZSet *redis.Script
+	RetryDeadJob    *redis.Script
+}
+
+func newScript() *Script {
+	return &Script{
+		DeleteJobAtZSet: redis.NewScript(redisLuaDeleteSingleCmd),
+		RetryDeadJob:    redis.NewScript(redisLuaRequeueSingleDeadCmd),
+	}
+}
 
 // TODO: add comment for those magic number
 const fetchKeysPerJobType = 6

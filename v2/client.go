@@ -18,6 +18,7 @@ var ErrNotRetried = fmt.Errorf("nothing retried")
 func NewClient(namespace string, opt *redis.Options) *Client {
 	return &Client{
 		conn:    NewConn(opt),
+		script:  newScript(),
 		keys:    newKeys(namespace),
 		options: newOption(),
 	}
@@ -26,6 +27,7 @@ func NewClient(namespace string, opt *redis.Options) *Client {
 // Client implements all of the functionality of the web UI. It can be used to inspect the status of a running cluster and retry dead jobs.
 type Client struct {
 	conn    *Conn
+	script  *Script
 	keys    *keys
 	options *Option
 }
@@ -33,15 +35,13 @@ type Client struct {
 // NewClient returns a connection to the Redis Server specified by Options.
 func NewConn(opt *redis.Options) *Conn {
 	return &Conn{
-		Client:     redis.NewClient(opt),
-		DeleteJobs: redis.NewScript(redisLuaDeleteSingleCmd),
+		Client: redis.NewClient(opt),
 	}
 }
 
 // Conn connection to the Redis Server specified by Options
 type Conn struct {
 	*redis.Client
-	DeleteJobs *redis.Script
 }
 
 type Option struct {

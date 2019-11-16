@@ -43,7 +43,7 @@ func TestClient_ScheduledJobs(t *testing.T) {
 
 func TestClient_RetryJobs(t *testing.T) {
 	client := newTestClient()
-	//defer client.cleanup()
+	defer client.cleanup()
 
 	total := int(client.options.RetryJobPageSize + 1)
 	pageSize := int(client.options.RetryJobPageSize)
