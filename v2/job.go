@@ -132,6 +132,18 @@ func (client *Client) RetryJobs(page int64) ([]*RetryJob, int64, error) {
 	return jobs, total, nil
 }
 
+func (client *Client) DeleteRetryJob(retryAt int64, jobID string) error {
+	ok, _, err := client.deleteJobs(client.keys.retry, retryAt, jobID)
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return errors.WithStack(ErrNotDeleted)
+	}
+
+	return nil
+}
+
 // DeadJob represents a job in the dead queue.
 type DeadJob struct {
 	*Job
