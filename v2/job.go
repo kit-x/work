@@ -15,6 +15,8 @@ type Job struct {
 	Name       string                 `json:"name,omitempty"`
 	EnqueuedAt int64                  `json:"t"`
 	Args       map[string]interface{} `json:"args"`
+	Unique     bool                   `json:"unique,omitempty"`
+	UniqueKey  string                 `json:"unique_key,omitempty"`
 
 	// Inputs when retrying
 
@@ -88,6 +90,40 @@ func (client *Client) ScheduledJobs(page int64) ([]*ScheduledJob, int64, error) 
 	}
 
 	return jobs, total, nil
+}
+
+// DeleteScheduledJob deletes a job in the scheduled queue.
+func (client *Client) DeleteScheduledJob(scheduledFor int64, jobID string) error {
+	ok, bytes, err := client.deleteJobs(client.keys.scheduled, scheduledFor, jobID)
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return errors.WithStack(ErrNotDeleted)
+	}
+	// maybe some error happened ?
+	if len(bytes) == 0 {
+		return nil
+	}
+
+	// If we get a job back, parse it and see if it's a unique job.
+	job, err := newJob(bytes)
+	if err != nil {
+		return err
+	}
+
+	// If it is, we need to delete the unique key.
+	if job.Unique {
+		uniqueKey, err := client.keys.UniqueJobKey(job.Name, job.Args)
+		if err != nil {
+			return err
+		}
+		if err := client.conn.Del(uniqueKey).Err(); err != nil {
+			return errors.WithStack(err)
+		}
+	}
+
+	return nil
 }
 
 // RetryJob represents a job in the retry queue.
@@ -259,7 +295,7 @@ func offset(page, limit int64) int64 {
 func (client *Client) deleteJobs(key string, score int64, jobID string) (bool, []byte, error) {
 	result, err := client.conn.DeleteJobs.Run(
 		client.conn,
-		[]string{client.keys.dead},
+		[]string{key},
 		score, jobID,
 	).Result()
 	if err != nil {

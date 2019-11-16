@@ -152,3 +152,38 @@ func TestClient_DeleteRetryJob(t *testing.T) {
 	err = client.DeleteDeadJob(0, jobs[0].ID)
 	assert.EqualError(t, ErrNotDeleted, errors.Cause(err).Error())
 }
+
+func TestClient_DeleteScheduledJob(t *testing.T) {
+	client := newTestClient()
+	defer client.cleanup()
+
+	// mock unique job
+	jobs := client.mockUniqueScheduledJobs(1)
+	total, _ := client.conn.ZCard(client.keys.scheduled).Result()
+	require.Equal(t, 1, int(total))
+
+	// delete 1 unique job
+	err := client.DeleteScheduledJob(jobs[0].RunAt, jobs[0].ID)
+	require.NoError(t, err)
+	total, _ = client.conn.ZCard(client.keys.scheduled).Result()
+	require.Equal(t, 0, int(total))
+
+	// mock 1 job
+	jobs = client.mockScheduledJobs(1)
+	total, _ = client.conn.ZCard(client.keys.scheduled).Result()
+	require.Equal(t, 1, int(total))
+
+	// delete 1 job
+	err = client.DeleteScheduledJob(jobs[0].RunAt, jobs[0].ID)
+	require.NoError(t, err)
+	total, _ = client.conn.ZCard(client.keys.scheduled).Result()
+	require.Equal(t, 0, int(total))
+
+	// delete failed when job id not found
+	err = client.DeleteScheduledJob(jobs[0].RunAt, "not found")
+	assert.EqualError(t, ErrNotDeleted, errors.Cause(err).Error())
+
+	// delete failed when job die_at invalid
+	err = client.DeleteScheduledJob(0, jobs[0].ID)
+	assert.EqualError(t, ErrNotDeleted, errors.Cause(err).Error())
+}

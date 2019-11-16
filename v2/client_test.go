@@ -7,7 +7,12 @@ import (
 	"github.com/go-redis/redis"
 	"github.com/pkg/errors"
 	"github.com/zhaolion/gofaker"
+	"github.com/zhaolion/gofaker/random"
 )
+
+func init() {
+	random.Seed(time.Now().UnixNano())
+}
 
 // cleanup when in testing. it should only used in test
 func (client *Client) cleanup() {
@@ -86,6 +91,22 @@ func (client *Client) mockJobs(count ...int) []*Job {
 	return jobs
 }
 
+func (client *Client) mockUniqueJobs(count ...int) []*Job {
+	jobs := client.mockJobs(count...)
+
+	for i := range jobs {
+		uniqueKey, _ := client.keys.UniqueJobKey(jobs[i].Name, jobs[i].Args)
+		must(func() error {
+			return client.conn.Set(uniqueKey, jobs[i], time.Hour).Err()
+		})
+
+		jobs[i].Unique = true
+		jobs[i].UniqueKey = uniqueKey
+	}
+
+	return jobs
+}
+
 func (client *Client) mockScheduledJobs(count ...int) []*ScheduledJob {
 	size := defaultNum(2, count...)
 	jobs := make([]*ScheduledJob, 0, size)
@@ -104,6 +125,22 @@ func (client *Client) mockScheduledJobs(count ...int) []*ScheduledJob {
 		must(func() error {
 			return client.conn.ZAdd(client.keys.scheduled, redis.Z{Score: float64(job.RunAt), Member: job}).Err()
 		})
+	}
+
+	return jobs
+}
+
+func (client *Client) mockUniqueScheduledJobs(count ...int) []*ScheduledJob {
+	jobs := client.mockScheduledJobs(count...)
+
+	for i := range jobs {
+		uniqueKey, _ := client.keys.UniqueJobKey(jobs[i].Name, jobs[i].Args)
+		must(func() error {
+			return client.conn.Set(uniqueKey, jobs[i], time.Hour).Err()
+		})
+
+		jobs[i].Unique = true
+		jobs[i].UniqueKey = uniqueKey
 	}
 
 	return jobs

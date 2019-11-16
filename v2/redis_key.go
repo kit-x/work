@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+
+	"github.com/pkg/errors"
 )
 
 func newKeys(namespace string) *keys {
@@ -19,7 +21,7 @@ func newKeys(namespace string) *keys {
 		knownJobs:           namespace + "known_jobs",
 		jobsPrefix:          namespace + "jobs",
 		retry:               namespace + "retry",
-		dead:                namespace + "retry",
+		dead:                namespace + "dead",
 		scheduled:           namespace + "scheduled",
 		lastPeriodicEnqueue: namespace + "last_periodic_enqueue",
 	}
@@ -108,7 +110,7 @@ func (ks keys) UniqueJobKey(jobName string, args map[string]interface{}) (string
 	if args != nil {
 		err := json.NewEncoder(&buf).Encode(args)
 		if err != nil {
-			return "", err
+			return "", errors.WithStack(err)
 		}
 	}
 
