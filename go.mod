@@ -20,6 +20,8 @@ require (
 	github.com/gocraft/work v0.5.1
 	github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b // indirect
 	github.com/gomodule/redigo v2.0.0+incompatible
+	github.com/hoisie/mustache v0.0.0-20160804235033-6375acf62c69 // indirect
+	github.com/jinzhu/copier v0.0.0-20190924061706-b57f9002281a // indirect
 	github.com/jrallison/go-workers v0.0.0-20180112190529-dbf81d0b75bb
 	github.com/kr/pretty v0.1.0 // indirect
 	github.com/onsi/ginkgo v1.10.3 // indirect
@@ -29,6 +31,7 @@ require (
 	github.com/robfig/cron v1.2.0
 	github.com/stretchr/testify v1.4.0
 	github.com/youtube/vitess v2.1.1+incompatible // indirect
+	github.com/zhaolion/gofaker v0.0.0-20181022161742-facbdb105910
 	golang.org/x/net v0.0.0-20191105084925-a882066a44e0 // indirect
 	gopkg.in/yaml.v2 v2.2.5 // indirect
 )
