@@ -9,8 +9,8 @@ import (
 )
 
 // cleanup when in testing. it should only used in test
-func (c *Client) cleanup() {
-	keys, err := c.conn.Keys(fmt.Sprintf("%s*", c.keys.NameSpace())).Result()
+func (client *Client) cleanup() {
+	keys, err := client.conn.Keys(fmt.Sprintf("%s*", client.keys.NameSpace())).Result()
 	if err != nil {
 		panic(err)
 	}
@@ -19,51 +19,51 @@ func (c *Client) cleanup() {
 		return
 	}
 
-	if err := c.conn.Del(keys...).Err(); err != nil {
+	if err := client.conn.Del(keys...).Err(); err != nil {
 		panic(err)
 	}
 }
 
-func (c *Client) mockWorkerPoolHeartbeat() *WorkerPoolHeartbeat {
+func (client *Client) mockWorkerPoolHeartbeat() *WorkerPoolHeartbeat {
 	heartbeat := fakeWorkerPoolHeartbeat()
 
 	must(func() error {
-		return c.conn.SAdd(c.keys.WorkerPoolsKey(), heartbeat.WorkerPoolID).Err()
+		return client.conn.SAdd(client.keys.WorkerPoolsKey(), heartbeat.WorkerPoolID).Err()
 	})
 	must(func() error {
-		return c.conn.HMSet(c.keys.HeartbeatKey(heartbeat.WorkerPoolID), heartbeat.ToRedis()).Err()
+		return client.conn.HMSet(client.keys.HeartbeatKey(heartbeat.WorkerPoolID), heartbeat.ToRedis()).Err()
 	})
 
 	return heartbeat
 }
 
-func (c *Client) mockWorkerPoolIDs(ids ...string) {
+func (client *Client) mockWorkerPoolIDs(ids ...string) {
 	must(func() error {
-		return c.conn.SAdd(c.keys.WorkerPoolsKey(), ids).Err()
+		return client.conn.SAdd(client.keys.WorkerPoolsKey(), ids).Err()
 	})
 }
 
-func (c *Client) mockWorkerObservation() *WorkerObservation {
-	heartbeat := c.mockWorkerPoolHeartbeat()
+func (client *Client) mockWorkerObservation() *WorkerObservation {
+	heartbeat := client.mockWorkerPoolHeartbeat()
 
 	ob := fakeWorkerObservation()
 	ob.heartbeat = heartbeat
 	ob.WorkerID = heartbeat.WorkerIDs[0]
 	ob.JobName = heartbeat.JobNames[0]
 	must(func() error {
-		return c.conn.HMSet(c.keys.WorkerObservationKey(ob.WorkerID), ob.ToRedis()).Err()
+		return client.conn.HMSet(client.keys.WorkerObservationKey(ob.WorkerID), ob.ToRedis()).Err()
 	})
 
 	return ob
 }
 
-func (c *Client) mockKnownJobNames(jobs ...string) {
+func (client *Client) mockKnownJobNames(jobs ...string) {
 	must(func() error {
-		return c.conn.SAdd(c.keys.KnownJobsKey(), jobs).Err()
+		return client.conn.SAdd(client.keys.KnownJobsKey(), jobs).Err()
 	})
 }
 
-func (c *Client) mockJobs(count ...int) jobs {
+func (client *Client) mockJobs(count ...int) jobs {
 	size := 2
 	if len(count) != 0 {
 		size = count[0]
@@ -78,11 +78,11 @@ func (c *Client) mockJobs(count ...int) jobs {
 		})
 	}
 
-	c.mockKnownJobNames(jobs.Names()...)
+	client.mockKnownJobNames(jobs.Names()...)
 
 	for _, job := range jobs {
 		must(func() error {
-			return c.conn.LPush(c.keys.JobsKey(job.Name), job).Err()
+			return client.conn.LPush(client.keys.JobsKey(job.Name), job).Err()
 		})
 	}
 

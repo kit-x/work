@@ -21,18 +21,18 @@ type Queue struct {
 }
 
 // Queues returns the Queue's it finds.
-func (c *Client) Queues() ([]*Queue, error) {
-	queues, err := c.fetchQueues()
+func (client *Client) Queues() ([]*Queue, error) {
+	queues, err := client.fetchQueues()
 	if err != nil {
 		return nil, err
 	}
 
-	return c.fetchQueuesLatency(queues)
+	return client.fetchQueuesLatency(queues)
 }
 
 // fetchQueues fetch all queues from known job name set and get queue's size
-func (c *Client) fetchQueues() (queues, error) {
-	names, err := c.knownJobNames()
+func (client *Client) fetchQueues() (queues, error) {
+	names, err := client.knownJobNames()
 	if err != nil {
 		return nil, err
 	}
@@ -40,12 +40,12 @@ func (c *Client) fetchQueues() (queues, error) {
 	cmds := make([]*redis.IntCmd, 0, len(names))
 	fetchQueuesSize := func(pipe redis.Pipeliner) error {
 		for i := range names {
-			cmd := pipe.LLen(c.keys.JobsKey(names[i]))
+			cmd := pipe.LLen(client.keys.JobsKey(names[i]))
 			cmds = append(cmds, cmd)
 		}
 		return nil
 	}
-	if _, err = c.conn.Pipelined(fetchQueuesSize); err != nil {
+	if _, err = client.conn.Pipelined(fetchQueuesSize); err != nil {
 		return nil, errors.WithStack(err)
 	}
 	// cmds and names should be equal
@@ -65,19 +65,19 @@ func (c *Client) fetchQueues() (queues, error) {
 }
 
 // fetchQueuesLatency fetch queue's job.EnqueueAt and count latency duration(seconds)
-func (c *Client) fetchQueuesLatency(queues queues) ([]*Queue, error) {
+func (client *Client) fetchQueuesLatency(queues queues) ([]*Queue, error) {
 	cmds := make([]*redis.StringCmd, 0, len(queues))
 	flushQueues := func(pipe redis.Pipeliner) error {
 		_ = queues.filterNotEmpty(func(idx int, queue *Queue) error {
 			queue.cmdIndex = len(cmds)
-			cmd := pipe.LIndex(c.keys.JobsKey(queue.JobName), -1)
+			cmd := pipe.LIndex(client.keys.JobsKey(queue.JobName), -1)
 			cmds = append(cmds, cmd)
 			return nil
 		})
 
 		return nil
 	}
-	if _, err := c.conn.Pipelined(flushQueues); err != nil {
+	if _, err := client.conn.Pipelined(flushQueues); err != nil {
 		return nil, errors.WithStack(err)
 	}
 
@@ -104,8 +104,8 @@ func (c *Client) fetchQueuesLatency(queues queues) ([]*Queue, error) {
 	return queues, nil
 }
 
-func (c *Client) knownJobNames() ([]string, error) {
-	names, err := c.conn.SMembers(c.keys.KnownJobsKey()).Result()
+func (client *Client) knownJobNames() ([]string, error) {
+	names, err := client.conn.SMembers(client.keys.KnownJobsKey()).Result()
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}

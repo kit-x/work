@@ -52,8 +52,8 @@ func (wo *WorkerObservation) ToRedis() map[string]interface{} {
 }
 
 // WorkerObservations returns all of the WorkerObservation's it finds for all worker pools' workers.
-func (c *Client) WorkerObservations() ([]*WorkerObservation, error) {
-	workerIDs, err := c.getWorkerIDs()
+func (client *Client) WorkerObservations() ([]*WorkerObservation, error) {
+	workerIDs, err := client.getWorkerIDs()
 	if err != nil {
 		return nil, err
 	}
@@ -61,12 +61,12 @@ func (c *Client) WorkerObservations() ([]*WorkerObservation, error) {
 	cmds := make([]*redis.StringStringMapCmd, 0, len(workerIDs))
 	fetchOb := func(pipe redis.Pipeliner) error {
 		for i := range workerIDs {
-			cmd := pipe.HGetAll(c.keys.WorkerObservationKey(workerIDs[i]))
+			cmd := pipe.HGetAll(client.keys.WorkerObservationKey(workerIDs[i]))
 			cmds = append(cmds, cmd)
 		}
 		return nil
 	}
-	if _, err = c.conn.Pipelined(fetchOb); err != nil {
+	if _, err = client.conn.Pipelined(fetchOb); err != nil {
 		return nil, errors.WithStack(err)
 	}
 
@@ -83,8 +83,8 @@ func (c *Client) WorkerObservations() ([]*WorkerObservation, error) {
 	return obs, nil
 }
 
-func (c *Client) getWorkerIDs() ([]string, error) {
-	beats, err := c.WorkerPoolHeartbeats()
+func (client *Client) getWorkerIDs() ([]string, error) {
+	beats, err := client.WorkerPoolHeartbeats()
 	if err != nil {
 		return nil, err
 	}

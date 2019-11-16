@@ -54,9 +54,9 @@ func (wph *WorkerPoolHeartbeat) ToRedis() map[string]interface{} {
 }
 
 // WorkerPoolHeartbeats queries Redis and returns all WorkerPoolHeartbeat's it finds (even for those worker pools which don't have a current heartbeat).
-func (c *Client) WorkerPoolHeartbeats() ([]*WorkerPoolHeartbeat, error) {
+func (client *Client) WorkerPoolHeartbeats() ([]*WorkerPoolHeartbeat, error) {
 	// fetch worker pool ids
-	workerPoolIDs, err := c.getWorkerPoolIDs()
+	workerPoolIDs, err := client.getWorkerPoolIDs()
 	if err != nil {
 		return nil, err
 	}
@@ -65,13 +65,13 @@ func (c *Client) WorkerPoolHeartbeats() ([]*WorkerPoolHeartbeat, error) {
 	cmds := make([]*redis.StringStringMapCmd, 0, len(workerPoolIDs))
 	sendHeartBeat := func(pipe redis.Pipeliner) error {
 		for i := range workerPoolIDs {
-			cmd := pipe.HGetAll(c.keys.HeartbeatKey(workerPoolIDs[i]))
+			cmd := pipe.HGetAll(client.keys.HeartbeatKey(workerPoolIDs[i]))
 			cmds = append(cmds, cmd)
 		}
 
 		return nil
 	}
-	if _, err = c.conn.Pipelined(sendHeartBeat); err != nil {
+	if _, err = client.conn.Pipelined(sendHeartBeat); err != nil {
 		return nil, errors.WithStack(err)
 	}
 
@@ -88,8 +88,8 @@ func (c *Client) WorkerPoolHeartbeats() ([]*WorkerPoolHeartbeat, error) {
 	return beats, nil
 }
 
-func (c *Client) getWorkerPoolIDs() ([]string, error) {
-	workerPoolIDs, err := c.conn.SMembers(c.keys.WorkerPoolsKey()).Result()
+func (client *Client) getWorkerPoolIDs() ([]string, error) {
+	workerPoolIDs, err := client.conn.SMembers(client.keys.WorkerPoolsKey()).Result()
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
