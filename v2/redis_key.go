@@ -8,18 +8,18 @@ import (
 	"github.com/pkg/errors"
 )
 
-func newKeys(namespace string) *keys {
+func newKeys(namespace string) *Keys {
 	l := len(namespace)
 	if (l > 0) && (namespace[l-1] != ':') {
 		namespace = namespace + ":"
 	}
 
-	return &keys{
+	return &Keys{
 		namespace:           namespace,
 		workerPools:         namespace + "worker_pools",
 		workerPrefix:        namespace + "worker",
 		knownJobs:           namespace + "known_jobs",
-		jobsPrefix:          namespace + "jobs",
+		jobsPrefix:          namespace + "jobs:",
 		retry:               namespace + "retry",
 		dead:                namespace + "dead",
 		scheduled:           namespace + "scheduled",
@@ -27,7 +27,7 @@ func newKeys(namespace string) *keys {
 	}
 }
 
-type keys struct {
+type Keys struct {
 	namespace           string
 	workerPools         string
 	workerPrefix        string
@@ -39,67 +39,67 @@ type keys struct {
 	lastPeriodicEnqueue string
 }
 
-func (ks keys) NameSpace() string {
+func (ks Keys) NameSpace() string {
 	return ks.namespace
 }
 
-func (ks keys) WorkerPoolsKey() string {
+func (ks Keys) WorkerPoolsKey() string {
 	return ks.workerPools
 }
 
-func (ks keys) RetryKey() string {
+func (ks Keys) RetryKey() string {
 	return ks.retry
 }
 
-func (ks keys) DeadKey() string {
+func (ks Keys) DeadKey() string {
 	return ks.dead
 }
 
-func (ks keys) ScheduledKey() string {
+func (ks Keys) ScheduledKey() string {
 	return ks.scheduled
 }
 
-func (ks keys) KnownJobsKey() string {
+func (ks Keys) KnownJobsKey() string {
 	return ks.knownJobs
 }
 
-func (ks keys) LastPeriodicEnqueueKey(jobName string) string {
+func (ks Keys) LastPeriodicEnqueueKey(jobName string) string {
 	return ks.lastPeriodicEnqueue
 }
 
-func (ks keys) HeartbeatKey(poolID string) string {
+func (ks Keys) HeartbeatKey(poolID string) string {
 	return fmt.Sprintf("%s:%s", ks.workerPools, poolID)
 }
 
-func (ks keys) WorkerObservationKey(workerID string) string {
+func (ks Keys) WorkerObservationKey(workerID string) string {
 	return fmt.Sprintf("%s:%s", ks.workerPrefix, workerID)
 }
 
-func (ks keys) JobsInProgressKey(poolID, jobName string) string {
+func (ks Keys) JobsInProgressKey(poolID, jobName string) string {
 	return fmt.Sprintf("%s:%s:inprogress", ks.JobsKey(jobName), poolID)
 }
 
-func (ks keys) JobsKey(jobName string) string {
-	return fmt.Sprintf("%s:%s", ks.jobsPrefix, jobName)
+func (ks Keys) JobsKey(jobName string) string {
+	return fmt.Sprintf("%s%s", ks.jobsPrefix, jobName)
 }
 
-func (ks keys) JobsPausedKey(jobName string) string {
+func (ks Keys) JobsPausedKey(jobName string) string {
 	return fmt.Sprintf("%s:paused", ks.JobsKey(jobName))
 }
 
-func (ks keys) JobsLockKey(jobName string) string {
+func (ks Keys) JobsLockKey(jobName string) string {
 	return fmt.Sprintf("%s:lock", ks.JobsKey(jobName))
 }
 
-func (ks keys) JobsLockInfoKey(jobName string) string {
+func (ks Keys) JobsLockInfoKey(jobName string) string {
 	return fmt.Sprintf("%s:lock_info", ks.JobsKey(jobName))
 }
 
-func (ks keys) JobsConcurrencyKey(jobName string) string {
+func (ks Keys) JobsConcurrencyKey(jobName string) string {
 	return fmt.Sprintf("%s:max_concurrency", ks.JobsKey(jobName))
 }
 
-func (ks keys) UniqueJobKey(jobName string, args map[string]interface{}) (string, error) {
+func (ks Keys) UniqueJobKey(jobName string, args map[string]interface{}) (string, error) {
 	var buf bytes.Buffer
 
 	buf.WriteString(ks.namespace)

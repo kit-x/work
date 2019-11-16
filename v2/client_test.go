@@ -110,6 +110,7 @@ func (client *Client) mockUniqueJobs(count ...int) []*Job {
 func (client *Client) mockScheduledJobs(count ...int) []*ScheduledJob {
 	size := defaultNum(2, count...)
 	jobs := make([]*ScheduledJob, 0, size)
+	names := make([]string, 0, size)
 	for i := 0; i < size; i++ {
 		jobs = append(jobs, &ScheduledJob{
 			Job: &Job{
@@ -119,7 +120,10 @@ func (client *Client) mockScheduledJobs(count ...int) []*ScheduledJob {
 			},
 			RunAt: time.Now().Unix() + 100,
 		})
+		names = append(names, jobs[i].Name)
 	}
+
+	client.mockKnownJobNames(names...)
 
 	for _, job := range jobs {
 		must(func() error {
@@ -149,6 +153,7 @@ func (client *Client) mockUniqueScheduledJobs(count ...int) []*ScheduledJob {
 func (client *Client) mockRetryJobs(count ...int) []*RetryJob {
 	size := defaultNum(2, count...)
 	jobs := make([]*RetryJob, 0, size)
+	names := make([]string, 0, size)
 	for i := 0; i < size; i++ {
 		jobs = append(jobs, &RetryJob{
 			Job: &Job{
@@ -158,7 +163,10 @@ func (client *Client) mockRetryJobs(count ...int) []*RetryJob {
 			},
 			RetryAt: time.Now().Unix() + 100,
 		})
+		names = append(names, jobs[i].Name)
 	}
+
+	client.mockKnownJobNames(names...)
 
 	for _, job := range jobs {
 		must(func() error {
@@ -172,6 +180,7 @@ func (client *Client) mockRetryJobs(count ...int) []*RetryJob {
 func (client *Client) mockDeadJobs(count ...int) []*DeadJob {
 	size := defaultNum(2, count...)
 	jobs := make([]*DeadJob, 0, size)
+	names := make([]string, 0, size)
 	for i := 0; i < size; i++ {
 		jobs = append(jobs, &DeadJob{
 			Job: &Job{
@@ -181,7 +190,10 @@ func (client *Client) mockDeadJobs(count ...int) []*DeadJob {
 			},
 			DiedAt: time.Now().Unix() + 100,
 		})
+		names = append(names, jobs[i].Name)
 	}
+
+	client.mockKnownJobNames(names...)
 
 	for _, job := range jobs {
 		must(func() error {

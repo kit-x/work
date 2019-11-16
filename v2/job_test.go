@@ -151,6 +151,11 @@ func TestClient_DeleteRetryJob(t *testing.T) {
 	// delete failed when job die_at invalid
 	err = client.DeleteDeadJob(0, jobs[0].ID)
 	assert.EqualError(t, ErrNotDeleted, errors.Cause(err).Error())
+
+	// nothing in dead set
+	client.cleanup()
+	err = client.DeleteDeadJob(0, jobs[0].ID)
+	assert.EqualError(t, ErrNotDeleted, errors.Cause(err).Error())
 }
 
 func TestClient_DeleteScheduledJob(t *testing.T) {
@@ -186,4 +191,37 @@ func TestClient_DeleteScheduledJob(t *testing.T) {
 	// delete failed when job die_at invalid
 	err = client.DeleteScheduledJob(0, jobs[0].ID)
 	assert.EqualError(t, ErrNotDeleted, errors.Cause(err).Error())
+}
+
+func TestClient_RetryDeadJob(t *testing.T) {
+	client := newTestClient()
+	defer client.cleanup()
+
+	// remove 1 job from dead job & push into job's List
+	jobs := client.mockDeadJobs()
+	total, _ := client.conn.ZCard(client.keys.dead).Result()
+	require.Equal(t, len(jobs), int(total))
+	jobSize, _ := client.conn.LLen(jobs[0].Name).Result()
+	require.Equal(t, int64(0), jobSize)
+
+	err := client.RetryDeadJob(jobs[0].DiedAt, jobs[0].ID)
+	require.NoError(t, err)
+
+	total, _ = client.conn.ZCard(client.keys.dead).Result()
+	require.Equal(t, len(jobs)-1, int(total))
+	jobSize, _ = client.conn.LLen(client.keys.JobsKey(jobs[0].Name)).Result()
+	require.Equal(t, int64(1), jobSize)
+
+	// remove invalid job id
+	err = client.RetryDeadJob(jobs[0].DiedAt, "not found")
+	assert.EqualError(t, ErrNotRetried, errors.Cause(err).Error())
+
+	// remove invalid job die_at
+	err = client.RetryDeadJob(0, jobs[0].ID)
+	assert.EqualError(t, ErrNotRetried, errors.Cause(err).Error())
+
+	// nothing in dead set
+	client.cleanup()
+	err = client.RetryDeadJob(jobs[0].DiedAt, jobs[0].ID)
+	assert.EqualError(t, ErrNotRetried, errors.Cause(err).Error())
 }

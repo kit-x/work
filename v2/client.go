@@ -28,7 +28,7 @@ func NewClient(namespace string, opt *redis.Options) *Client {
 type Client struct {
 	conn    *Conn
 	script  *Script
-	keys    *keys
+	keys    *Keys
 	options *Option
 }
 

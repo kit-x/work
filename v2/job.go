@@ -2,6 +2,7 @@ package work
 
 import (
 	"encoding/json"
+	"time"
 
 	"github.com/go-redis/redis"
 	"github.com/pkg/errors"
@@ -238,13 +239,39 @@ func (client *Client) DeleteDeadJob(diedAt int64, jobID string) error {
 // RetryDeadJob retries a dead job.
 // The job will be re-queued on the normal work queue for eventual processing by a worker.
 func (client *Client) RetryDeadJob(diedAt int64, jobID string) error {
-	// client.Queues is too expensive
-	_, err := client.knownJobNames()
+	// why not using Queues(), because client.Queues is too expensive
+	jobNames, err := client.knownJobNames()
 	if err != nil {
 		return err
 	}
 
-	// TODO
+	keys := make([]string, 0, len(jobNames)+1)
+	// KEY[1]
+	keys = append(keys, client.keys.dead)
+	// KEY[2, 3, ...]
+	for i := range jobNames {
+		keys = append(keys, client.keys.JobsKey(jobNames[i]))
+	}
+
+	result, err := client.script.RetryDeadJob.Run(
+		client.conn,
+		keys,
+		client.keys.jobsPrefix,
+		time.Now().Unix(),
+		diedAt,
+		jobID,
+	).Result()
+	if err != nil {
+		return errors.WithStack(err)
+	}
+
+	count, err := Int64(result)
+	if err != nil {
+		return errors.WithStack(err)
+	}
+	if count == 0 {
+		return ErrNotRetried
+	}
 
 	return nil
 }
