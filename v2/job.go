@@ -72,7 +72,7 @@ func (job *ScheduledJob) MarshalBinary() ([]byte, error) {
 // The page param is 1-based; each page is 20 items.
 // The total number of items (not pages) in the list of scheduled jobs is also returned.
 func (client *Client) ScheduledJobs(page int64) ([]*ScheduledJob, int64, error) {
-	scoreJobs, total, err := client.jobs(client.keys.scheduled, page, client.options.ScheduledJobSize)
+	scoreJobs, total, err := client.jobs(client.keys.scheduled, page, client.options.ScheduledJobPageSize)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -84,6 +84,48 @@ func (client *Client) ScheduledJobs(page int64) ([]*ScheduledJob, int64, error) 
 			return nil, 0, err
 		}
 		job.RunAt = scoreJobs[i].Score
+		jobs = append(jobs, job)
+	}
+
+	return jobs, total, nil
+}
+
+// RetryJob represents a job in the retry queue.
+type RetryJob struct {
+	*Job
+
+	RetryAt int64 `json:"retry_at"`
+}
+
+func newRetryJob(rawBytes []byte) (*RetryJob, error) {
+	j, err := newJob(rawBytes)
+	if err != nil {
+		return nil, err
+	}
+
+	return &RetryJob{Job: j}, nil
+}
+
+func (job *RetryJob) MarshalBinary() ([]byte, error) {
+	return json.Marshal(job)
+}
+
+// RetryJobs returns a list of RetryJob's.
+// The page param is 1-based; each page is 20 items.
+// The total number of items (not pages) in the list of retry jobs is also returned.
+func (client *Client) RetryJobs(page int64) ([]*RetryJob, int64, error) {
+	scoreJobs, total, err := client.jobs(client.keys.retry, page, client.options.RetryJobPageSize)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	jobs := make([]*RetryJob, 0, len(scoreJobs))
+	for i := range scoreJobs {
+		job, err := newRetryJob(scoreJobs[i].Bytes)
+		if err != nil {
+			return nil, 0, err
+		}
+		job.RetryAt = scoreJobs[i].Score
 		jobs = append(jobs, job)
 	}
 
