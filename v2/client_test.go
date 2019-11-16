@@ -132,6 +132,29 @@ func (client *Client) mockRetryJobs(count ...int) []*RetryJob {
 	return jobs
 }
 
+func (client *Client) mockDeadJobs(count ...int) []*DeadJob {
+	size := defaultNum(2, count...)
+	jobs := make([]*DeadJob, 0, size)
+	for i := 0; i < size; i++ {
+		jobs = append(jobs, &DeadJob{
+			Job: &Job{
+				ID:         gofaker.Alpha(4),
+				Name:       "job" + gofaker.Alpha(4),
+				EnqueuedAt: time.Now().Unix() - 100,
+			},
+			DiedAt: time.Now().Unix() + 100,
+		})
+	}
+
+	for _, job := range jobs {
+		must(func() error {
+			return client.conn.ZAdd(client.keys.dead, redis.Z{Score: float64(job.DiedAt), Member: job}).Err()
+		})
+	}
+
+	return jobs
+}
+
 func must(f func() error) {
 	if err := f(); err != nil {
 		panic(errors.WithStack(err))

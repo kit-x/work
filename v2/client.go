@@ -45,11 +45,13 @@ type Conn struct {
 type Option struct {
 	ScheduledJobPageSize int64 `json:"scheduled_job_page_size"`
 	RetryJobPageSize     int64 `json:"retry_job_page_size"`
+	DeadJobPageSize      int64 `json:"dead_job_page_size"`
 }
 
 func newOption() *Option {
 	return &Option{
 		ScheduledJobPageSize: 20,
 		RetryJobPageSize:     20,
+		DeadJobPageSize:      20,
 	}
 }

@@ -132,6 +132,48 @@ func (client *Client) RetryJobs(page int64) ([]*RetryJob, int64, error) {
 	return jobs, total, nil
 }
 
+// DeadJob represents a job in the dead queue.
+type DeadJob struct {
+	*Job
+
+	DiedAt int64 `json:"died_at"`
+}
+
+func newDeadJob(rawBytes []byte) (*DeadJob, error) {
+	j, err := newJob(rawBytes)
+	if err != nil {
+		return nil, err
+	}
+
+	return &DeadJob{Job: j}, nil
+}
+
+func (job *DeadJob) MarshalBinary() ([]byte, error) {
+	return json.Marshal(job)
+}
+
+// DeadJobs returns a list of DeadJob's.
+// The page param is 1-based; each page is 20 items.
+// The total number of items (not pages) in the list of dead jobs is also returned.
+func (client *Client) DeadJobs(page int64) ([]*DeadJob, int64, error) {
+	scoreJobs, total, err := client.jobs(client.keys.dead, page, client.options.RetryJobPageSize)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	jobs := make([]*DeadJob, 0, len(scoreJobs))
+	for i := range scoreJobs {
+		job, err := newDeadJob(scoreJobs[i].Bytes)
+		if err != nil {
+			return nil, 0, err
+		}
+		job.DiedAt = scoreJobs[i].Score
+		jobs = append(jobs, job)
+	}
+
+	return jobs, total, nil
+}
+
 type scoreJob struct {
 	Bytes []byte
 	Score int64
