@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/go-redis/redis"
 	"github.com/pkg/errors"
 	"github.com/zhaolion/gofaker"
 )
@@ -63,13 +64,9 @@ func (client *Client) mockKnownJobNames(jobs ...string) {
 	})
 }
 
-func (client *Client) mockJobs(count ...int) jobs {
-	size := 2
-	if len(count) != 0 {
-		size = count[0]
-	}
-
-	jobs := make(jobs, 0)
+func (client *Client) mockJobs(count ...int) []*Job {
+	size := defaultNum(2, count...)
+	jobs := make(jobs, 0, size)
 	for i := 0; i < size; i++ {
 		jobs = append(jobs, &Job{
 			ID:         gofaker.Alpha(4),
@@ -89,8 +86,39 @@ func (client *Client) mockJobs(count ...int) jobs {
 	return jobs
 }
 
+func (client *Client) mockScheduledJobs(count ...int) []*ScheduledJob {
+	size := defaultNum(2, count...)
+	jobs := make([]*ScheduledJob, 0, size)
+	for i := 0; i < size; i++ {
+		jobs = append(jobs, &ScheduledJob{
+			Job: &Job{
+				ID:         gofaker.Alpha(4),
+				Name:       "job" + gofaker.Alpha(4),
+				EnqueuedAt: time.Now().Unix() - 100,
+			},
+			RunAt: time.Now().Unix() + 100,
+		})
+	}
+
+	for _, job := range jobs {
+		must(func() error {
+			return client.conn.ZAdd(client.keys.scheduled, redis.Z{Score: float64(job.RunAt), Member: job}).Err()
+		})
+	}
+
+	return jobs
+}
+
 func must(f func() error) {
 	if err := f(); err != nil {
 		panic(errors.WithStack(err))
 	}
+}
+
+func defaultNum(defaultNum int, count ...int) int {
+	if len(count) != 0 {
+		return count[0]
+	}
+
+	return defaultNum
 }

@@ -17,15 +17,17 @@ var ErrNotRetried = fmt.Errorf("nothing retried")
 // NewClient creates a new Client with the specified redis namespace and connection pool.
 func NewClient(namespace string, opt *redis.Options) *Client {
 	return &Client{
-		conn: NewConn(opt),
-		keys: newKeys(namespace),
+		conn:    NewConn(opt),
+		keys:    newKeys(namespace),
+		options: newOption(),
 	}
 }
 
 // Client implements all of the functionality of the web UI. It can be used to inspect the status of a running cluster and retry dead jobs.
 type Client struct {
-	conn *Conn
-	keys *keys
+	conn    *Conn
+	keys    *keys
+	options *Option
 }
 
 // NewClient returns a connection to the Redis Server specified by Options.
@@ -38,4 +40,14 @@ func NewConn(opt *redis.Options) *Conn {
 // Conn connection to the Redis Server specified by Options
 type Conn struct {
 	*redis.Client
+}
+
+type Option struct {
+	ScheduledJobSize int64
+}
+
+func newOption() *Option {
+	return &Option{
+		ScheduledJobSize: 20,
+	}
 }

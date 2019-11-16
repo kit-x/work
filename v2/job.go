@@ -3,6 +3,7 @@ package work
 import (
 	"encoding/json"
 
+	"github.com/go-redis/redis"
 	"github.com/pkg/errors"
 )
 
@@ -45,4 +46,103 @@ func (jobs jobs) Names() []string {
 	}
 
 	return names
+}
+
+// ScheduledJob represents a job in the scheduled queue.
+type ScheduledJob struct {
+	*Job
+
+	RunAt int64 `json:"run_at"`
+}
+
+func newScheduledJob(rawBytes []byte) (*ScheduledJob, error) {
+	j, err := newJob(rawBytes)
+	if err != nil {
+		return nil, err
+	}
+
+	return &ScheduledJob{Job: j}, nil
+}
+
+func (job *ScheduledJob) MarshalBinary() ([]byte, error) {
+	return json.Marshal(job)
+}
+
+// ScheduledJobs returns a list of ScheduledJob's.
+// The page param is 1-based; each page is 20 items.
+// The total number of items (not pages) in the list of scheduled jobs is also returned.
+func (client *Client) ScheduledJobs(page int64) ([]*ScheduledJob, int64, error) {
+	scoreJobs, total, err := client.jobs(client.keys.scheduled, page, client.options.ScheduledJobSize)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	jobs := make([]*ScheduledJob, 0, len(scoreJobs))
+	for i := range scoreJobs {
+		job, err := newScheduledJob(scoreJobs[i].Bytes)
+		if err != nil {
+			return nil, 0, err
+		}
+		job.RunAt = scoreJobs[i].Score
+		jobs = append(jobs, job)
+	}
+
+	return jobs, total, nil
+}
+
+type scoreJob struct {
+	Bytes []byte
+	Score int64
+}
+
+func (client *Client) jobs(key string, page, limit int64) (jobs []*scoreJob, total int64, e error) {
+	// fetch jobs and limit total in pipeline
+	var (
+		jobsCmd  *redis.ZSliceCmd
+		countCmd *redis.IntCmd
+	)
+	paginateScheduledJobs := func(pipe redis.Pipeliner) error {
+		opt := redis.ZRangeBy{
+			Max: "+inf", Min: "-inf",
+			Offset: offset(page, limit), Count: limit,
+		}
+		jobsCmd = pipe.ZRangeByScoreWithScores(key, opt)
+		countCmd = pipe.ZCard(key)
+
+		return nil
+	}
+	if _, err := client.conn.Pipelined(paginateScheduledJobs); err != nil {
+		return nil, 0, errors.WithStack(err)
+	}
+	results, err := jobsCmd.Result()
+	if err != nil {
+		return nil, 0, errors.WithStack(err)
+	}
+	total, err = countCmd.Result()
+	if err != nil {
+		return nil, 0, errors.WithStack(err)
+	}
+
+	jobs = make([]*scoreJob, 0, len(results))
+	for i := range results {
+		s, ok := results[i].Member.(string)
+		if !ok {
+			return nil, 0, errors.New("zrangebyscore member should be string")
+		}
+
+		jobs = append(jobs, &scoreJob{
+			Bytes: []byte(s),
+			Score: int64(results[i].Score),
+		})
+	}
+
+	return jobs, total, nil
+}
+
+func offset(page, limit int64) int64 {
+	if page <= 0 {
+		page = 1
+	}
+
+	return (page - 1) * limit
 }
