@@ -236,6 +236,15 @@ func (client *Client) DeleteDeadJob(diedAt int64, jobID string) error {
 	return nil
 }
 
+// DeleteAllDeadJobs deletes all dead jobs.
+func (client *Client) DeleteAllDeadJobs() error {
+	if err := client.conn.Del(client.keys.dead).Err(); err != nil {
+		return errors.WithStack(err)
+	}
+
+	return nil
+}
+
 // RetryDeadJob retries a dead job.
 // The job will be re-queued on the normal work queue for eventual processing by a worker.
 func (client *Client) RetryDeadJob(diedAt int64, jobID string) error {

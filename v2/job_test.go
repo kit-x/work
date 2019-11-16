@@ -225,3 +225,18 @@ func TestClient_RetryDeadJob(t *testing.T) {
 	err = client.RetryDeadJob(jobs[0].DiedAt, jobs[0].ID)
 	assert.EqualError(t, ErrNotRetried, errors.Cause(err).Error())
 }
+
+func TestClient_DeleteAllDeadJobs(t *testing.T) {
+	client := newTestClient()
+	defer client.cleanup()
+
+	jobs := client.mockDeadJobs()
+	total, _ := client.conn.ZCard(client.keys.dead).Result()
+	require.Equal(t, len(jobs), int(total))
+
+	err := client.DeleteAllDeadJobs()
+	require.NoError(t, err)
+
+	total, _ = client.conn.ZCard(client.keys.dead).Result()
+	require.Equal(t, 0, int(total))
+}
