@@ -285,3 +285,10 @@ else
 end
 return 'dup'
 `
+
+func (client *Client) A() {
+
+}
+
+type scripter struct {
+}

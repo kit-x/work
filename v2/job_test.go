@@ -3,6 +3,9 @@ package work
 import (
 	"testing"
 
+	"github.com/pkg/errors"
+	"github.com/stretchr/testify/assert"
+
 	"github.com/stretchr/testify/require"
 )
 
@@ -41,7 +44,7 @@ func TestClient_ScheduledJobs(t *testing.T) {
 
 func TestClient_RetryJobs(t *testing.T) {
 	client := newTestClient()
-	defer client.cleanup()
+	//defer client.cleanup()
 
 	total := int(client.options.RetryJobPageSize + 1)
 	pageSize := int(client.options.RetryJobPageSize)
@@ -103,4 +106,27 @@ func TestClient_DeadJobs(t *testing.T) {
 	require.Equal(t, 0, len(page3))
 
 	require.Equal(t, total, len(gotJobs))
+}
+
+func TestClient_DeleteDeadJob(t *testing.T) {
+	client := newTestClient()
+	defer client.cleanup()
+
+	jobs := client.mockDeadJobs()
+	total, _ := client.conn.ZCard(client.keys.dead).Result()
+	require.Equal(t, len(jobs), int(total))
+
+	// delete 1 job
+	err := client.DeleteDeadJob(jobs[0].DiedAt, jobs[0].ID)
+	require.NoError(t, err)
+	total, _ = client.conn.ZCard(client.keys.dead).Result()
+	require.Equal(t, len(jobs)-1, int(total))
+
+	// delete failed when job id not found
+	err = client.DeleteDeadJob(jobs[0].DiedAt, "not found")
+	assert.EqualError(t, ErrNotDeleted, errors.Cause(err).Error())
+
+	// delete failed when job die_at invalid
+	err = client.DeleteDeadJob(0, jobs[0].ID)
+	assert.EqualError(t, ErrNotDeleted, errors.Cause(err).Error())
 }

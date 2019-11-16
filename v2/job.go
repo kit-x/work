@@ -174,6 +174,19 @@ func (client *Client) DeadJobs(page int64) ([]*DeadJob, int64, error) {
 	return jobs, total, nil
 }
 
+// DeleteDeadJob deletes a dead job from Redis.
+func (client *Client) DeleteDeadJob(diedAt int64, jobID string) error {
+	ok, _, err := client.deleteJobs(client.keys.dead, diedAt, jobID)
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return errors.WithStack(ErrNotDeleted)
+	}
+
+	return nil
+}
+
 type scoreJob struct {
 	Bytes []byte
 	Score int64
@@ -229,4 +242,32 @@ func offset(page, limit int64) int64 {
 	}
 
 	return (page - 1) * limit
+}
+
+func (client *Client) deleteJobs(key string, score int64, jobID string) (bool, []byte, error) {
+	result, err := client.conn.DeleteJobs.Run(
+		client.conn,
+		[]string{client.keys.dead},
+		score, jobID,
+	).Result()
+	if err != nil {
+		return false, nil, errors.WithStack(err)
+	}
+
+	values, ok := result.([]interface{})
+	if !ok || len(values) != 2 {
+		return false, nil, errors.Errorf("need 2 elements back from redis command, but got %+v", result)
+	}
+
+	count, err := Int64(values[0])
+	if err != nil {
+		return false, nil, errors.WithStack(err)
+	}
+
+	str, err := String(values[1])
+	if err != nil {
+		return false, nil, errors.WithStack(err)
+	}
+
+	return count > 0, []byte(str), nil
 }

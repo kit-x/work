@@ -33,13 +33,15 @@ type Client struct {
 // NewClient returns a connection to the Redis Server specified by Options.
 func NewConn(opt *redis.Options) *Conn {
 	return &Conn{
-		Client: redis.NewClient(opt),
+		Client:     redis.NewClient(opt),
+		DeleteJobs: redis.NewScript(redisLuaDeleteSingleCmd),
 	}
 }
 
 // Conn connection to the Redis Server specified by Options
 type Conn struct {
 	*redis.Client
+	DeleteJobs *redis.Script
 }
 
 type Option struct {
