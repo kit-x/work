@@ -188,7 +188,7 @@ func (client *Client) mockDeadJobs(count ...int) []*DeadJob {
 				Name:       "job" + gofaker.Alpha(4),
 				EnqueuedAt: time.Now().Unix() - 100,
 			},
-			DiedAt: time.Now().Unix() + 100,
+			DiedAt: time.Now().Unix() - 100,
 		})
 		names = append(names, jobs[i].Name)
 	}
@@ -208,12 +208,4 @@ func must(f func() error) {
 	if err := f(); err != nil {
 		panic(errors.WithStack(err))
 	}
-}
-
-func defaultNum(defaultNum int, count ...int) int {
-	if len(count) != 0 {
-		return count[0]
-	}
-
-	return defaultNum
 }

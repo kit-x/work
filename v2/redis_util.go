@@ -39,3 +39,11 @@ func Int64(reply interface{}) (int64, error) {
 	}
 	return 0, fmt.Errorf("redigo: unexpected type for Int64, got type %T", reply)
 }
+
+func defaultNum(defaultNum int, count ...int) int {
+	if len(count) != 0 {
+		return count[0]
+	}
+
+	return defaultNum
+}

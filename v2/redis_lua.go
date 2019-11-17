@@ -9,12 +9,14 @@ import (
 type Script struct {
 	DeleteJobAtZSet *redis.Script
 	RetryDeadJob    *redis.Script
+	RequeueAllDead  *redis.Script
 }
 
 func newScript() *Script {
 	return &Script{
 		DeleteJobAtZSet: redis.NewScript(redisLuaDeleteSingleCmd),
 		RetryDeadJob:    redis.NewScript(redisLuaRequeueSingleDeadCmd),
+		RequeueAllDead:  redis.NewScript(redisLuaRequeueAllDeadCmd),
 	}
 }
 

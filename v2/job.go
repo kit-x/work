@@ -74,7 +74,7 @@ func (job *ScheduledJob) MarshalBinary() ([]byte, error) {
 // ScheduledJobs returns a list of ScheduledJob's.
 // The page param is 1-based; each page is 20 items.
 // The total number of items (not pages) in the list of scheduled jobs is also returned.
-func (client *Client) ScheduledJobs(page int64) ([]*ScheduledJob, int64, error) {
+func (client *Client) ScheduledJobs(page int) ([]*ScheduledJob, int64, error) {
 	scoreJobs, total, err := client.jobs(client.keys.scheduled, page, client.options.ScheduledJobPageSize)
 	if err != nil {
 		return nil, 0, err
@@ -150,7 +150,7 @@ func (job *RetryJob) MarshalBinary() ([]byte, error) {
 // RetryJobs returns a list of RetryJob's.
 // The page param is 1-based; each page is 20 items.
 // The total number of items (not pages) in the list of retry jobs is also returned.
-func (client *Client) RetryJobs(page int64) ([]*RetryJob, int64, error) {
+func (client *Client) RetryJobs(page int) ([]*RetryJob, int64, error) {
 	scoreJobs, total, err := client.jobs(client.keys.retry, page, client.options.RetryJobPageSize)
 	if err != nil {
 		return nil, 0, err
@@ -204,7 +204,7 @@ func (job *DeadJob) MarshalBinary() ([]byte, error) {
 // DeadJobs returns a list of DeadJob's.
 // The page param is 1-based; each page is 20 items.
 // The total number of items (not pages) in the list of dead jobs is also returned.
-func (client *Client) DeadJobs(page int64) ([]*DeadJob, int64, error) {
+func (client *Client) DeadJobs(page int) ([]*DeadJob, int64, error) {
 	scoreJobs, total, err := client.jobs(client.keys.dead, page, client.options.RetryJobPageSize)
 	if err != nil {
 		return nil, 0, err
@@ -285,12 +285,56 @@ func (client *Client) RetryDeadJob(diedAt int64, jobID string) error {
 	return nil
 }
 
+// RetryAllDeadJobs requeues all dead jobs.
+// In other words, it puts them all back on the normal work queue for workers to pull from and process.
+func (client *Client) RetryAllDeadJobs(limit ...int) error {
+	// why not using Queues(), because client.Queues is too expensive
+	jobNames, err := client.knownJobNames()
+	if err != nil {
+		return err
+	}
+
+	keys := make([]string, 0, len(jobNames)+1)
+	// KEY[1]
+	keys = append(keys, client.keys.dead)
+	// KEY[2, 3, ...]
+	for i := range jobNames {
+		keys = append(keys, client.keys.JobsKey(jobNames[i]))
+	}
+
+	// Cap iterations for safety (which could reprocess 1k*1k jobs).
+	// This is conceptually an infinite loop but let's be careful.
+	max := defaultNum(client.options.RequeueAllMaxPage, limit...)
+	for i := 0; i < max; i++ {
+		result, err := client.script.RequeueAllDead.Run(
+			client.conn,
+			keys,
+			client.keys.jobsPrefix,
+			time.Now().Unix(),
+			client.options.RequeueAllPageSize,
+		).Result()
+		if err != nil {
+			return errors.WithStack(err)
+		}
+
+		count, err := Int64(result)
+		if err != nil {
+			return errors.WithStack(err)
+		}
+		if count == 0 {
+			break
+		}
+	}
+
+	return nil
+}
+
 type scoreJob struct {
 	Bytes []byte
 	Score int64
 }
 
-func (client *Client) jobs(key string, page, limit int64) (jobs []*scoreJob, total int64, e error) {
+func (client *Client) jobs(key string, page, limit int) (jobs []*scoreJob, total int64, e error) {
 	// fetch jobs and limit total in pipeline
 	var (
 		jobsCmd  *redis.ZSliceCmd
@@ -299,7 +343,7 @@ func (client *Client) jobs(key string, page, limit int64) (jobs []*scoreJob, tot
 	paginateScheduledJobs := func(pipe redis.Pipeliner) error {
 		opt := redis.ZRangeBy{
 			Max: "+inf", Min: "-inf",
-			Offset: offset(page, limit), Count: limit,
+			Offset: offset(page, limit), Count: int64(limit),
 		}
 		jobsCmd = pipe.ZRangeByScoreWithScores(key, opt)
 		countCmd = pipe.ZCard(key)
@@ -334,12 +378,12 @@ func (client *Client) jobs(key string, page, limit int64) (jobs []*scoreJob, tot
 	return jobs, total, nil
 }
 
-func offset(page, limit int64) int64 {
+func offset(page, limit int) int64 {
 	if page <= 0 {
 		page = 1
 	}
 
-	return (page - 1) * limit
+	return int64((page - 1) * limit)
 }
 
 func (client *Client) deleteJobs(key string, score int64, jobID string) (bool, []byte, error) {
