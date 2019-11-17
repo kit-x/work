@@ -51,6 +51,15 @@ func (jobs jobs) Names() []string {
 	return names
 }
 
+// AddJob will enqueue the job into specified list.
+func (client *Client) AddJob(job *Job) error {
+	if err := client.conn.LPush(client.keys.JobsKey(job.Name), job).Err(); err != nil {
+		return errors.WithStack(err)
+	}
+
+	return nil
+}
+
 // ScheduledJob represents a job in the scheduled queue.
 type ScheduledJob struct {
 	*Job
@@ -412,4 +421,12 @@ func (client *Client) deleteJobs(key string, score int64, jobID string) (bool, [
 	}
 
 	return count > 0, []byte(str), nil
+}
+
+func (client *Client) addToKnownJobs(jobName ...string) error {
+	if err := client.conn.SAdd(client.keys.KnownJobsKey(), jobName).Err(); err != nil {
+		return errors.WithStack(err)
+	}
+
+	return nil
 }

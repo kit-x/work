@@ -65,7 +65,7 @@ func (client *Client) mockWorkerObservation() *WorkerObservation {
 
 func (client *Client) mockKnownJobNames(jobs ...string) {
 	must(func() error {
-		return client.conn.SAdd(client.keys.KnownJobsKey(), jobs).Err()
+		return client.addToKnownJobs(jobs...)
 	})
 }
 

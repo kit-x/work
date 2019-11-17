@@ -261,3 +261,18 @@ func TestClient_RetryAllDeadJobs(t *testing.T) {
 		require.Equal(t, int64(1), jobSize)
 	}
 }
+
+func TestClient_AddJob(t *testing.T) {
+	client := newTestClient()
+	defer client.cleanup()
+
+	job := fakeJob()
+	total := client.conn.LLen(client.keys.JobsKey(job.Name)).Val()
+	require.Equal(t, 0, int(total))
+
+	err := client.AddJob(job)
+	require.NoError(t, err)
+
+	total = client.conn.LLen(client.keys.JobsKey(job.Name)).Val()
+	require.Equal(t, 1, int(total))
+}

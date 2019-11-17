@@ -3,6 +3,8 @@ package work
 import (
 	"strconv"
 	"time"
+
+	"github.com/zhaolion/gofaker"
 )
 
 func fakeWorkerPoolHeartbeat() *WorkerPoolHeartbeat {
@@ -29,4 +31,17 @@ func fakeWorkerObservation() *WorkerObservation {
 		Checkin:   "checkin",
 		CheckinAt: time.Now().Unix(),
 	}
+}
+
+func fakeJob() *Job {
+	return &Job{
+		ID:         gofaker.Alpha(4),
+		Name:       fakeJobName(),
+		EnqueuedAt: time.Now().Unix(),
+		Args:       make(map[string]interface{}),
+	}
+}
+
+func fakeJobName() string {
+	return "job" + gofaker.Alpha(4)
 }
