@@ -276,3 +276,16 @@ func TestClient_AddJob(t *testing.T) {
 	total = client.conn.LLen(client.keys.JobsKey(job.Name)).Val()
 	require.Equal(t, 1, int(total))
 }
+
+func TestClient_AddScheduledJob(t *testing.T) {
+	client := newTestClient()
+	defer client.cleanup()
+
+	require.Equal(t, int64(0), client.conn.ZCard(client.keys.scheduled).Val())
+
+	job := fakeScheduledJob()
+	err := client.AddScheduledJob(job)
+	require.NoError(t, err)
+
+	require.Equal(t, int64(1), client.conn.ZCard(client.keys.scheduled).Val())
+}

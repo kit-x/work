@@ -80,6 +80,14 @@ func (job *ScheduledJob) MarshalBinary() ([]byte, error) {
 	return json.Marshal(job)
 }
 
+func (client *Client) AddScheduledJob(job *ScheduledJob) error {
+	if err := client.conn.ZAdd(client.keys.scheduled, redis.Z{Member: job, Score: float64(job.RunAt)}).Err(); err != nil {
+		return errors.WithStack(err)
+	}
+
+	return nil
+}
+
 // ScheduledJobs returns a list of ScheduledJob's.
 // The page param is 1-based; each page is 20 items.
 // The total number of items (not pages) in the list of scheduled jobs is also returned.

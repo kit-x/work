@@ -33,6 +33,13 @@ func fakeWorkerObservation() *WorkerObservation {
 	}
 }
 
+func fakeScheduledJob() *ScheduledJob {
+	return &ScheduledJob{
+		Job:   fakeJob(),
+		RunAt: time.Now().Unix() + 100,
+	}
+}
+
 func fakeJob() *Job {
 	return &Job{
 		ID:         gofaker.Alpha(4),

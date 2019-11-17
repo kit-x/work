@@ -43,6 +43,28 @@ func (enq *Enqueuer) Enqueue(jobName string, args map[string]interface{}) (*Job,
 	return job, nil
 }
 
+func (enq *Enqueuer) EnqueueIn(jobName string, secondsFromNow int64, args map[string]interface{}) (*ScheduledJob, error) {
+	now := time.Now().Unix()
+	job := &ScheduledJob{
+		RunAt: now + secondsFromNow,
+		Job: &Job{
+			Name:       jobName,
+			ID:         makeIdentifier(),
+			EnqueuedAt: now,
+			Args:       args,
+		},
+	}
+
+	if err := enq.client.AddScheduledJob(job); err != nil {
+		return nil, err
+	}
+	if err := enq.addToKnownJobs(job.Name); err != nil {
+		return nil, err
+	}
+
+	return job, nil
+}
+
 func (enq *Enqueuer) addToKnownJobs(jobName string) error {
 	if !enq.knownJobs.isFresh(jobName) {
 		return nil

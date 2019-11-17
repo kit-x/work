@@ -59,3 +59,28 @@ func newTestEnqueuer(namespace ...string) *Enqueuer {
 func (enq *Enqueuer) cleanup() {
 	enq.client.cleanup()
 }
+
+func TestEnqueuer_EnqueueIn(t *testing.T) {
+	enq := newTestEnqueuer()
+	defer enq.cleanup()
+
+	jobName := fakeJobName()
+	require.Equal(t, int64(0), enq.client.conn.ZCard(enq.client.keys.scheduled).Val())
+	require.Equal(t, 0, enq.knownJobs.size())
+
+	// enqueue 1 job
+	job, err := enq.EnqueueIn(jobName, 100, nil)
+	require.NoError(t, err)
+	require.Equal(t, jobName, job.Name)
+	require.Equal(t, int64(1), enq.client.conn.ZCard(enq.client.keys.scheduled).Val())
+	require.Equal(t, 1, enq.knownJobs.size())
+	id1 := job.ID
+
+	// enqueue again
+	job, err = enq.EnqueueIn(jobName, 100, nil)
+	require.NoError(t, err)
+	require.Equal(t, jobName, job.Name)
+	require.Equal(t, int64(2), enq.client.conn.ZCard(enq.client.keys.scheduled).Val())
+	require.Equal(t, 1, enq.knownJobs.size())
+	require.NotEqual(t, id1, job.ID)
+}
