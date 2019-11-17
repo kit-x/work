@@ -40,6 +40,14 @@ func fakeScheduledJob() *ScheduledJob {
 	}
 }
 
+func fakeUniqueJob() *Job {
+	job := fakeJob()
+	job.Unique = true
+	job.UniqueKey = gofaker.Alpha(8)
+
+	return job
+}
+
 func fakeJob() *Job {
 	return &Job{
 		ID:         gofaker.Alpha(4),

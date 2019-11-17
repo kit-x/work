@@ -10,6 +10,8 @@ type Script struct {
 	DeleteJobAtZSet *redis.Script
 	RetryDeadJob    *redis.Script
 	RequeueAllDead  *redis.Script
+	EnqueueUnique   *redis.Script
+	EnqueueUniqueIn *redis.Script
 }
 
 func newScript() *Script {
@@ -17,6 +19,8 @@ func newScript() *Script {
 		DeleteJobAtZSet: redis.NewScript(redisLuaDeleteSingleCmd),
 		RetryDeadJob:    redis.NewScript(redisLuaRequeueSingleDeadCmd),
 		RequeueAllDead:  redis.NewScript(redisLuaRequeueAllDeadCmd),
+		EnqueueUnique:   redis.NewScript(redisLuaEnqueueUnique),
+		EnqueueUniqueIn: redis.NewScript(redisLuaEnqueueUniqueIn),
 	}
 }
 

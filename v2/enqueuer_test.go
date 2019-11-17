@@ -5,6 +5,8 @@ import (
 	"time"
 
 	"github.com/go-redis/redis"
+	"github.com/pkg/errors"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -83,4 +85,43 @@ func TestEnqueuer_EnqueueIn(t *testing.T) {
 	require.Equal(t, int64(2), enq.client.conn.ZCard(enq.client.keys.scheduled).Val())
 	require.Equal(t, 1, enq.knownJobs.size())
 	require.NotEqual(t, id1, job.ID)
+}
+
+func TestEnqueuer_EnqueueUniqueByKey(t *testing.T) {
+	enq := newTestEnqueuer()
+	defer enq.cleanup()
+
+	// enqueue unique job by nil keyMap
+	jobName := fakeJobName()
+	require.Equal(t, 0, enq.knownJobs.size())
+
+	job, err := enq.EnqueueUniqueByKey(jobName, Q{"a": 1, "b": 2}, nil)
+	require.NoError(t, err)
+	if assert.NotNil(t, job) {
+		assert.True(t, job.Unique)
+		assert.NotEmpty(t, job.UniqueKey)
+	}
+	require.Equal(t, 1, enq.knownJobs.size())
+
+	_, err = enq.EnqueueUniqueByKey(jobName, Q{"a": 1, "b": 2}, nil)
+	assert.EqualError(t, ErrDupEnqueued, errors.Cause(err).Error())
+	require.Equal(t, 1, enq.knownJobs.size())
+
+	_, err = enq.EnqueueUniqueByKey(jobName, Q{"a": 1, "b": 2}, nil)
+	assert.EqualError(t, ErrDupEnqueued, errors.Cause(err).Error())
+
+	// enqueue unique job by key condition
+	jobName = fakeJobName()
+	job, err = enq.EnqueueUniqueByKey(jobName, Q{"a": 1, "b": 2}, Q{"key": 123})
+	require.NoError(t, err)
+	require.NotNil(t, job)
+	require.Equal(t, 2, enq.knownJobs.size())
+
+	_, err = enq.EnqueueUniqueByKey(jobName, Q{"a": 1, "b": 2}, Q{"key": 123})
+	assert.EqualError(t, ErrDupEnqueued, errors.Cause(err).Error())
+	require.Equal(t, 2, enq.knownJobs.size())
+
+	job, err = enq.EnqueueUniqueByKey(jobName, Q{"a": 1, "b": 2}, Q{"key": 321})
+	require.NoError(t, err)
+	require.NotNil(t, job)
 }

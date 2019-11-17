@@ -289,3 +289,44 @@ func TestClient_AddScheduledJob(t *testing.T) {
 
 	require.Equal(t, int64(1), client.conn.ZCard(client.keys.scheduled).Val())
 }
+
+func TestClient_AddUniqueJob(t *testing.T) {
+	client := newTestClient()
+	defer client.cleanup()
+
+	// enqueue 3 job with same key, only 1 job set in queue
+	job := fakeUniqueJob()
+	require.Equal(t, int64(0), client.conn.LLen(client.keys.JobsKey(job.Name)).Val())
+	require.Empty(t, client.conn.Get(job.UniqueKey).Val())
+
+	got, err := client.AddUniqueJob(job, true)
+	require.True(t, got)
+	require.NoError(t, err)
+
+	got, err = client.AddUniqueJob(job, true)
+	require.False(t, got)
+	require.NoError(t, err)
+
+	got, err = client.AddUniqueJob(job, true)
+	require.False(t, got)
+	require.NoError(t, err)
+
+	require.Equal(t, int64(1), client.conn.LLen(client.keys.JobsKey(job.Name)).Val())
+	require.NotEmpty(t, client.conn.Get(job.UniqueKey).Val())
+
+	// enqueue job when not using default keys
+	job = fakeUniqueJob()
+	require.Equal(t, int64(0), client.conn.LLen(client.keys.JobsKey(job.Name)).Val())
+	require.Empty(t, client.conn.Get(job.UniqueKey).Val())
+
+	got, err = client.AddUniqueJob(job, false)
+	require.True(t, got)
+	require.NoError(t, err)
+
+	got, err = client.AddUniqueJob(job, false)
+	require.False(t, got)
+	require.NoError(t, err)
+
+	require.Equal(t, int64(1), client.conn.LLen(client.keys.JobsKey(job.Name)).Val())
+	require.NotEmpty(t, client.conn.Get(job.UniqueKey).Val())
+}

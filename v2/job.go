@@ -8,6 +8,10 @@ import (
 	"github.com/pkg/errors"
 )
 
+// Q is a shortcut to easily specify arguments for jobs when enqueueing them.
+// Example: e.Enqueue("send_email", work.Q{"addr": "test@example.com", "track": true})
+type Q map[string]interface{}
+
 // Job represents a job.
 type Job struct {
 	// Inputs when making a new job
@@ -437,4 +441,38 @@ func (client *Client) addToKnownJobs(jobName ...string) error {
 	}
 
 	return nil
+}
+
+var defaultUniqueJobKey = []byte("1")
+
+func (client *Client) AddUniqueJob(job *Job, useDefaultKeys bool) (bool, error) {
+	rawJSON, _ := json.Marshal(job)
+
+	var key []byte
+	if useDefaultKeys {
+		// keying on arguments so arguments can't be updated
+		// we'll just get them off the original job so to save space, make this "1"
+		key = defaultUniqueJobKey
+	} else {
+		// we'll use this for updated arguments since the job on the queue
+		// doesn't get updated
+		key = rawJSON
+	}
+
+	result, err := client.script.EnqueueUnique.Run(
+		client.conn,
+		[]string{client.keys.JobsKey(job.Name), job.UniqueKey},
+		rawJSON,
+		key,
+	).Result()
+	if err != nil {
+		return false, errors.WithStack(err)
+	}
+
+	flag, ok := result.(string)
+	if !ok {
+		return false, errors.New("script.EnqueueUnique should return string")
+	}
+
+	return flag == "ok", nil
 }
