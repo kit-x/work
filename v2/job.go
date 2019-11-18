@@ -447,6 +447,18 @@ var defaultUniqueJobKey = []byte("1")
 
 func (client *Client) AddUniqueJob(job *Job, useDefaultKeys bool) (bool, error) {
 	rawJSON, _ := json.Marshal(job)
+	return client.handleUniqueJob(job.Name, job.UniqueKey, rawJSON, useDefaultKeys, 0)
+}
+
+func (client *Client) AddUniqueScheduledJob(job *ScheduledJob, useDefaultKeys bool) (bool, error) {
+	rawJSON, _ := json.Marshal(job)
+	return client.handleUniqueJob(job.Name, job.UniqueKey, rawJSON, useDefaultKeys, job.RunAt)
+}
+
+func (client *Client) handleUniqueJob(jobName, uniqueKey string, rawJSON []byte, useDefaultKeys bool, at int64) (bool, error) {
+	if uniqueKey == "" {
+		return false, errors.WithStack(ErrEmptyUniqueKey)
+	}
 
 	var key []byte
 	if useDefaultKeys {
@@ -459,16 +471,29 @@ func (client *Client) AddUniqueJob(job *Job, useDefaultKeys bool) (bool, error) 
 		key = rawJSON
 	}
 
-	result, err := client.script.EnqueueUnique.Run(
-		client.conn,
-		[]string{client.keys.JobsKey(job.Name), job.UniqueKey},
-		rawJSON,
-		key,
-	).Result()
+	var (
+		result interface{}
+		err    error
+	)
+	if at <= 0 {
+		result, err = client.script.EnqueueUnique.Run(
+			client.conn,
+			[]string{client.keys.JobsKey(jobName), uniqueKey},
+			rawJSON,
+			key,
+		).Result()
+	} else {
+		result, err = client.script.EnqueueUniqueIn.Run(
+			client.conn,
+			[]string{client.keys.scheduled, uniqueKey},
+			rawJSON,
+			key,
+			at,
+		).Result()
+	}
 	if err != nil {
 		return false, errors.WithStack(err)
 	}
-
 	flag, ok := result.(string)
 	if !ok {
 		return false, errors.New("script.EnqueueUnique should return string")

@@ -33,6 +33,14 @@ func fakeWorkerObservation() *WorkerObservation {
 	}
 }
 
+func fakeUniqueScheduledJob() *ScheduledJob {
+	job := fakeScheduledJob()
+	job.Unique = true
+	job.UniqueKey = gofaker.Alpha(8)
+
+	return job
+}
+
 func fakeScheduledJob() *ScheduledJob {
 	return &ScheduledJob{
 		Job:   fakeJob(),
