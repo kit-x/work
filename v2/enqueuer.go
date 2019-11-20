@@ -146,6 +146,47 @@ func (enq *Enqueuer) EnqueueUniqueByKey(jobName string, args map[string]interfac
 	return job, nil
 }
 
+// EnqueueUniqueInByKey enqueues a job in the scheduled job queue that is unique on specified key for execution in secondsFromNow seconds.
+// See EnqueueUnique for the semantics of unique jobs.
+// Subsequent calls with same key will update arguments
+func (enq *Enqueuer) EnqueueUniqueInByKey(jobName string, secondsFromNow int64, args map[string]interface{}, keyMap map[string]interface{}) (*ScheduledJob, error) {
+	var useDefaultKeys bool
+	if keyMap == nil {
+		useDefaultKeys = true
+		keyMap = args
+	}
+
+	uniqueKey, err := enq.client.keys.UniqueJobKey(jobName, keyMap)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+
+	job := &ScheduledJob{
+		Job: &Job{
+			Name:       jobName,
+			ID:         makeIdentifier(),
+			EnqueuedAt: time.Now().Unix(),
+			Args:       args,
+			Unique:     true,
+			UniqueKey:  uniqueKey,
+		},
+		RunAt: time.Now().Unix() + secondsFromNow,
+	}
+	enqueued, err := enq.client.AddUniqueScheduledJob(job, useDefaultKeys)
+	if err != nil {
+		return nil, err
+	}
+	if !enqueued {
+		return nil, ErrDupEnqueued
+	}
+
+	if err := enq.addToKnownJobs(jobName); err != nil {
+		return nil, err
+	}
+
+	return job, nil
+}
+
 func (enq *Enqueuer) addToKnownJobs(jobName string) error {
 	if !enq.knownJobs.isFresh(jobName) {
 		return nil

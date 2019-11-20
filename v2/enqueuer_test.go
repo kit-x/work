@@ -125,3 +125,43 @@ func TestEnqueuer_EnqueueUniqueByKey(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, job)
 }
+
+func TestEnqueuer_EnqueueUniqueInByKey(t *testing.T) {
+	enq := newTestEnqueuer()
+	defer enq.cleanup()
+
+	// enqueue unique job by nil keyMap
+	jobName := fakeJobName()
+	require.Equal(t, 0, enq.knownJobs.size())
+
+	job, err := enq.EnqueueUniqueInByKey(jobName, 100, Q{"a": 1, "b": 2}, nil)
+	require.NoError(t, err)
+	if assert.NotNil(t, job) {
+		assert.True(t, job.Unique)
+		assert.NotEmpty(t, job.UniqueKey)
+		assert.True(t, job.RunAt > time.Now().Unix())
+	}
+	require.Equal(t, 1, enq.knownJobs.size())
+
+	_, err = enq.EnqueueUniqueInByKey(jobName, 100, Q{"a": 1, "b": 2}, nil)
+	assert.EqualError(t, ErrDupEnqueued, errors.Cause(err).Error())
+	_, err = enq.EnqueueUniqueInByKey(jobName, 100, Q{"a": 1, "b": 2}, nil)
+	assert.EqualError(t, ErrDupEnqueued, errors.Cause(err).Error())
+
+	require.Equal(t, 1, enq.knownJobs.size())
+
+	// enqueue unique job by key condition
+	jobName = fakeJobName()
+	job, err = enq.EnqueueUniqueInByKey(jobName, 100, Q{"a": 1, "b": 2}, Q{"key": 123})
+
+	require.NoError(t, err)
+	require.NotNil(t, job)
+	require.Equal(t, 2, enq.knownJobs.size())
+
+	job, err = enq.EnqueueUniqueInByKey(jobName, 100, Q{"a": 1, "b": 2}, Q{"key": 123})
+	assert.EqualError(t, ErrDupEnqueued, errors.Cause(err).Error())
+
+	job, err = enq.EnqueueUniqueInByKey(jobName, 100, Q{"a": 1, "b": 2}, Q{"key": 321})
+	require.NoError(t, err)
+	require.NotNil(t, job)
+}
