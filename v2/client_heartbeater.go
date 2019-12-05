@@ -53,6 +53,34 @@ func (wph *WorkerPoolHeartbeat) ToRedis() map[string]interface{} {
 	}
 }
 
+// SendHeartbeat flush heartbeat info into redis
+func (client *Client) SendHeartbeat(beat *WorkerPoolHeartbeat) error {
+	sendHeartbeat := func(pipe redis.Pipeliner) error {
+		pipe.SAdd(client.keys.WorkerPoolsKey(), beat.WorkerPoolID)
+		pipe.HMSet(client.keys.HeartbeatKey(beat.WorkerPoolID), beat.ToRedis())
+		return nil
+	}
+	if _, err := client.conn.Pipelined(sendHeartbeat); err != nil {
+		return errors.WithStack(err)
+	}
+
+	return nil
+}
+
+// RemoveWorkerPoolHeartbeat remove heartbeat info in redis
+func (client *Client) RemoveWorkerPoolHeartbeat(workerPoolID string) error {
+	removeHeartbeat := func(pipe redis.Pipeliner) error {
+		pipe.SRem(client.keys.WorkerPoolsKey(), workerPoolID)
+		pipe.Del(client.keys.HeartbeatKey(workerPoolID))
+		return nil
+	}
+	if _, err := client.conn.Pipelined(removeHeartbeat); err != nil {
+		return errors.WithStack(err)
+	}
+
+	return nil
+}
+
 // WorkerPoolHeartbeats queries Redis and returns all WorkerPoolHeartbeat's it finds (even for those worker pools which don't have a current heartbeat).
 func (client *Client) WorkerPoolHeartbeats() ([]*WorkerPoolHeartbeat, error) {
 	// fetch worker pool ids
