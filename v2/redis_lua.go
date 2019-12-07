@@ -12,6 +12,7 @@ type Script struct {
 	RequeueAllDead  *redis.Script
 	EnqueueUnique   *redis.Script
 	EnqueueUniqueIn *redis.Script
+	Requeue         *redis.Script
 }
 
 func newScript() *Script {
@@ -21,6 +22,7 @@ func newScript() *Script {
 		RequeueAllDead:  redis.NewScript(redisLuaRequeueAllDeadCmd),
 		EnqueueUnique:   redis.NewScript(redisLuaEnqueueUnique),
 		EnqueueUniqueIn: redis.NewScript(redisLuaEnqueueUniqueIn),
+		Requeue:         redis.NewScript(redisLuaZremLpushCmd),
 	}
 }
 

@@ -118,7 +118,7 @@ func (client *Client) mockScheduledJobs(count ...int) []*ScheduledJob {
 				Name:       "job" + gofaker.Alpha(4),
 				EnqueuedAt: time.Now().Unix() - 100,
 			},
-			RunAt: time.Now().Unix() + 100,
+			RunAt: time.Now().Unix() - 100,
 		})
 		names = append(names, jobs[i].Name)
 	}
